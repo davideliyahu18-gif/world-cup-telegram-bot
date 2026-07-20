@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>דוד - מפת התרעות חיה 🛡️</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  html, body { margin: 0; height: 100%; font-family: -apple-system, Arial, sans-serif; background: #0b0f14; color: #e8ecf1; }
+  header { padding: 12px 16px; background: #12181f; border-bottom: 1px solid #232b34; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 16px; margin: 0; }
+  #status { font-size: 12px; color: #9aa7b4; }
+  #map { height: calc(100% - 52px - 0px); width: 100%; }
+  #unmapped { padding: 8px 16px; background: #1a2129; font-size: 13px; color: #f0c419; display: none; }
+  .disclaimer { font-size: 11px; color: #6b7684; padding: 0 16px 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🛡️ דוד - מפת התרעות חיה</h1>
+  <span id="status">בודק...</span>
+</header>
+<div class="disclaimer">מידע לא רשמי - מקור: פיקוד העורף. אינו כולל את כל האזורים המדויקים.</div>
+<div id="unmapped"></div>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const map = L.map('map').setView([31.5, 34.9], 7.3);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+  }).addTo(map);
+
+  const markers = new Map();
+
+  function markerFor(area) {
+    if (markers.has(area.name)) {
+      return markers.get(area.name);
+    }
+    const circle = L.circle([area.lat, area.lng], {
+      radius: 6000,
+      color: '#ff3b30',
+      fillColor: '#ff3b30',
+      fillOpacity: 0.5,
+    }).addTo(map);
+    circle.bindPopup(area.name);
+    markers.set(area.name, circle);
+    return circle;
+  }
+
+  async function refresh() {
+    try {
+      const res = await fetch('/api/active-alerts');
+      const data = await res.json();
+
+      const activeNames = new Set(data.areas.map((a) => a.name));
+      for (const [name, marker] of markers.entries()) {
+        if (!activeNames.has(name)) {
+          map.removeLayer(marker);
+          markers.delete(name);
+        }
+      }
+      data.areas.forEach(markerFor);
+
+      const unmappedEl = document.getElementById('unmapped');
+      if (data.unmapped.length > 0) {
+        unmappedEl.style.display = 'block';
+        unmappedEl.textContent = 'התרעות נוספות (ללא מיקום על המפה): ' + data.unmapped.join(', ');
+      } else {
+        unmappedEl.style.display = 'none';
+      }
+
+      document.getElementById('status').textContent =
+        data.areas.length + data.unmapped.length > 0
+          ? 'התרעות פעילות: ' + (data.areas.length + data.unmapped.length)
+          : 'אין התרעות פעילות';
+    } catch (err) {
+      document.getElementById('status').textContent = 'שגיאת חיבור';
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 5000);
+</script>
+</body>
+</html>

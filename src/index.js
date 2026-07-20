@@ -3,6 +3,7 @@ const { bot, sendToChat } = require('./bot');
 const { fetchCurrentAlert } = require('./services/orefService');
 const { fetchNewPosts } = require('./services/telegramChannelService');
 const { formatAlert, formatNews } = require('./formatters');
+const { createServer } = require('./server');
 
 async function pollAlerts() {
   try {
@@ -36,6 +37,10 @@ function main() {
   });
 
   console.log(`${config.brandEmoji} ${config.brandName} is running.`);
+
+  createServer().listen(config.port, () => {
+    console.log(`🗺️  Live map available at http://localhost:${config.port}`);
+  });
 
   setInterval(pollAlerts, config.orefPollIntervalMs);
   setInterval(pollNews, config.newsPollIntervalMs);

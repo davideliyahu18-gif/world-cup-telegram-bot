@@ -1,6 +1,8 @@
 const fetch = require('node-fetch');
 
 const ALERTS_URL = 'https://www.oref.org.il/WarningMessages/alert/alerts.json';
+// How long an area stays "active" on the live map after its last reported alert.
+const ACTIVE_AREA_TTL_MS = 3 * 60 * 1000;
 
 const REQUEST_HEADERS = {
   Referer: 'https://www.oref.org.il/',
@@ -9,13 +11,51 @@ const REQUEST_HEADERS = {
 };
 
 const seenAlertIds = new Set();
+const activeAreaExpiry = new Map();
 
 /**
- * Fetches the current alert payload from Pikud HaOref.
- * The endpoint returns an empty body when there is no active alert,
- * so callers must handle a null result.
+ * Fetches the current alert payload from Pikud HaOref and returns it only
+ * the first time a given alert is seen (for the Telegram notification).
+ * The endpoint returns an empty body when there is no active alert, so
+ * callers must handle a null result.
  */
 async function fetchCurrentAlert() {
+  const payload = await fetchAlertPayload();
+  if (!payload) {
+    return null;
+  }
+
+  markAreasActive(payload.data);
+
+  const alertId = `${payload.id || ''}:${payload.data.join(',')}`;
+  if (seenAlertIds.has(alertId)) {
+    return null;
+  }
+  seenAlertIds.add(alertId);
+  pruneSeenIds();
+
+  return {
+    areas: payload.data,
+    category: payload.title,
+    time: new Date(),
+  };
+}
+
+/** Returns area names with a still-unexpired alert, for the live map. */
+function getActiveAreas() {
+  const now = Date.now();
+  const active = [];
+  for (const [area, expiry] of activeAreaExpiry.entries()) {
+    if (expiry > now) {
+      active.push(area);
+    } else {
+      activeAreaExpiry.delete(area);
+    }
+  }
+  return active;
+}
+
+async function fetchAlertPayload() {
   const response = await fetch(ALERTS_URL, { headers: REQUEST_HEADERS });
   const raw = await response.text();
 
@@ -34,18 +74,14 @@ async function fetchCurrentAlert() {
     return null;
   }
 
-  const alertId = `${payload.id || ''}:${payload.data.join(',')}`;
-  if (seenAlertIds.has(alertId)) {
-    return null;
-  }
-  seenAlertIds.add(alertId);
-  pruneSeenIds();
+  return payload;
+}
 
-  return {
-    areas: payload.data,
-    category: payload.title,
-    time: new Date(),
-  };
+function markAreasActive(areas) {
+  const expiry = Date.now() + ACTIVE_AREA_TTL_MS;
+  for (const area of areas) {
+    activeAreaExpiry.set(area, expiry);
+  }
 }
 
 function pruneSeenIds() {
@@ -59,4 +95,4 @@ function pruneSeenIds() {
   }
 }
 
-module.exports = { fetchCurrentAlert };
+module.exports = { fetchCurrentAlert, getActiveAreas };
