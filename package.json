@@ -1,0 +1,16 @@
+{
+  "name": "david-civilian-alert-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot that relays Pikud HaOref alerts and Israeli news feeds with custom formatting",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "node-fetch": "^2.7.0",
+    "rss-parser": "^3.13.0",
+    "telegraf": "^4.16.3"
+  }
+}
