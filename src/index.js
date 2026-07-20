@@ -26,8 +26,15 @@ async function pollNews() {
   }
 }
 
-async function main() {
-  await bot.launch();
+function main() {
+  // bot.launch() only resolves when the bot is stopped, so it must not be
+  // awaited here - awaiting it would block the console.log and interval
+  // setup below indefinitely.
+  bot.launch().catch((err) => {
+    console.error('Fatal error starting bot:', err);
+    process.exit(1);
+  });
+
   console.log(`${config.brandEmoji} ${config.brandName} is running.`);
 
   setInterval(pollAlerts, config.orefPollIntervalMs);
@@ -37,7 +44,4 @@ async function main() {
   process.once('SIGTERM', () => bot.stop('SIGTERM'));
 }
 
-main().catch((err) => {
-  console.error('Fatal error starting bot:', err);
-  process.exit(1);
-});
+main();
