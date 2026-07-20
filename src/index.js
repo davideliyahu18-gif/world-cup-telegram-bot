@@ -1,7 +1,7 @@
 const config = require('./config');
 const { bot, sendToChat } = require('./bot');
 const { fetchCurrentAlert } = require('./services/orefService');
-const { fetchNewItems } = require('./services/newsService');
+const { fetchNewPosts } = require('./services/telegramChannelService');
 const { formatAlert, formatNews } = require('./formatters');
 
 async function pollAlerts() {
@@ -17,12 +17,12 @@ async function pollAlerts() {
 
 async function pollNews() {
   try {
-    const items = await fetchNewItems();
+    const items = await fetchNewPosts();
     for (const item of items) {
       await sendToChat(formatNews(item));
     }
   } catch (err) {
-    console.error('Error polling news feeds:', err.message);
+    console.error('Error polling source channel:', err.message);
   }
 }
 
