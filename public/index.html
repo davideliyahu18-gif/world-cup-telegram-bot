@@ -6,52 +6,213 @@
 <title>דוד - מפת התרעות חיה 🛡️</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
-  html, body { margin: 0; height: 100%; font-family: -apple-system, Arial, sans-serif; background: #0b0f14; color: #e8ecf1; }
-  header { padding: 12px 16px; background: #12181f; border-bottom: 1px solid #232b34; display: flex; align-items: center; justify-content: space-between; }
-  header h1 { font-size: 16px; margin: 0; }
-  #status { font-size: 12px; color: #9aa7b4; }
-  #map { height: calc(100% - 52px - 0px); width: 100%; }
-  #unmapped { padding: 8px 16px; background: #1a2129; font-size: 13px; color: #f0c419; display: none; }
-  .disclaimer { font-size: 11px; color: #6b7684; padding: 0 16px 8px; }
+  :root {
+    --bg: #0b0f14;
+    --panel: #131a22;
+    --panel-border: #232d38;
+    --text: #e8ecf1;
+    --muted: #8b97a5;
+    --accent: #ff3b30;
+    --accent-soft: rgba(255, 59, 48, 0.18);
+    --ok: #34c759;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  #app { display: flex; flex-direction: column; height: 100%; }
+
+  header {
+    padding: 14px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .logo { font-size: 22px; }
+  .brand h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  .brand .subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .live-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--panel-border);
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.5);
+    animation: pulse-dot 2s infinite;
+  }
+  .live-pill.alert .live-dot { background: var(--accent); animation: pulse-dot-red 1.4s infinite; }
+  .live-pill.alert { color: var(--accent); background: var(--accent-soft); }
+
+  @keyframes pulse-dot {
+    0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.5); }
+    70% { box-shadow: 0 0 0 6px rgba(52, 199, 89, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); }
+  }
+  @keyframes pulse-dot-red {
+    0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.6); }
+    70% { box-shadow: 0 0 0 8px rgba(255, 59, 48, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+  }
+
+  .disclaimer {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 6px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--panel-border);
+  }
+
+  main {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+  #map { flex: 1; min-width: 0; }
+
+  aside {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-inline-start: 1px solid var(--panel-border);
+    overflow-y: auto;
+    padding: 14px;
+  }
+  aside h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  .empty-state {
+    text-align: center;
+    color: var(--muted);
+    padding: 30px 10px;
+    font-size: 13px;
+  }
+  .empty-state .icon { font-size: 28px; margin-bottom: 8px; }
+
+  .alert-card {
+    background: var(--accent-soft);
+    border: 1px solid rgba(255, 59, 48, 0.35);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .alert-card .name { font-weight: 600; font-size: 13px; }
+  .alert-card .meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .unmapped-card {
+    background: rgba(240, 196, 25, 0.1);
+    border: 1px solid rgba(240, 196, 25, 0.3);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #f0c419;
+  }
+
+  @media (max-width: 720px) {
+    main { flex-direction: column; }
+    aside {
+      width: 100%;
+      border-inline-start: none;
+      border-top: 1px solid var(--panel-border);
+      max-height: 35vh;
+    }
+    #map { height: 55vh; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>🛡️ דוד - מפת התרעות חיה</h1>
-  <span id="status">בודק...</span>
-</header>
-<div class="disclaimer">מידע לא רשמי - מקור: פיקוד העורף. אינו כולל את כל האזורים המדויקים.</div>
-<div id="unmapped"></div>
-<div id="map"></div>
+<div id="app">
+  <header>
+    <div class="brand">
+      <span class="logo">🛡️</span>
+      <div>
+        <h1>דוד - מפת התרעות חיה</h1>
+        <div class="subtitle">מקור: פיקוד העורף · מידע לא רשמי</div>
+      </div>
+    </div>
+    <div id="livePill" class="live-pill">
+      <span class="live-dot"></span>
+      <span id="liveText">בודק...</span>
+    </div>
+  </header>
+
+  <div class="disclaimer">
+    ⚠️ כלי קהילתי לא רשמי. הכיסוי מוגבל לכ-60 ערים/אזורים מרכזיים - התרעות נוספות מופיעות ברשימה בצד. אין להסתמך על מפה זו כמקור בלעדי להנחיות חירום.
+  </div>
+
+  <main>
+    <div id="map"></div>
+    <aside>
+      <h2>התרעות פעילות</h2>
+      <div id="alertsList"></div>
+    </aside>
+  </main>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  const map = L.map('map').setView([31.5, 34.9], 7.3);
+  const map = L.map('map', { zoomControl: true }).setView([31.5, 34.9], 7.3);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
   }).addTo(map);
 
   const markers = new Map();
 
+  function pulsingIcon() {
+    return L.divIcon({
+      className: '',
+      html: '<div style="width:18px;height:18px;border-radius:50%;background:#ff3b30;box-shadow:0 0 0 0 rgba(255,59,48,0.6);animation:pulse-dot-red 1.4s infinite;border:2px solid #fff;"></div>',
+      iconSize: [18, 18],
+    });
+  }
+
   function markerFor(area) {
     if (markers.has(area.name)) {
       return markers.get(area.name);
     }
-    const circle = L.circle([area.lat, area.lng], {
-      radius: 6000,
-      color: '#ff3b30',
-      fillColor: '#ff3b30',
-      fillOpacity: 0.5,
-    }).addTo(map);
-    circle.bindPopup(area.name);
-    markers.set(area.name, circle);
-    return circle;
+    const marker = L.marker([area.lat, area.lng], { icon: pulsingIcon() }).addTo(map);
+    marker.bindPopup(`<b>${area.name}</b>`);
+    markers.set(area.name, marker);
+    return marker;
+  }
+
+  function timeAgo(iso) {
+    const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+    if (seconds < 60) return `לפני ${seconds} שניות`;
+    return `לפני ${Math.round(seconds / 60)} דקות`;
   }
 
   async function refresh() {
+    const livePill = document.getElementById('livePill');
+    const liveText = document.getElementById('liveText');
+    const alertsList = document.getElementById('alertsList');
+
     try {
       const res = await fetch('/api/active-alerts');
       const data = await res.json();
+      const totalActive = data.areas.length + data.unmapped.length;
 
       const activeNames = new Set(data.areas.map((a) => a.name));
       for (const [name, marker] of markers.entries()) {
@@ -62,20 +223,31 @@
       }
       data.areas.forEach(markerFor);
 
-      const unmappedEl = document.getElementById('unmapped');
-      if (data.unmapped.length > 0) {
-        unmappedEl.style.display = 'block';
-        unmappedEl.textContent = 'התרעות נוספות (ללא מיקום על המפה): ' + data.unmapped.join(', ');
+      alertsList.innerHTML = '';
+      if (totalActive === 0) {
+        alertsList.innerHTML = '<div class="empty-state"><div class="icon">✅</div>אין התרעות פעילות כרגע</div>';
+        livePill.classList.remove('alert');
+        liveText.textContent = 'רגוע · מתעדכן כל 5 שניות';
       } else {
-        unmappedEl.style.display = 'none';
-      }
+        livePill.classList.add('alert');
+        liveText.textContent = `${totalActive} התרעות פעילות`;
 
-      document.getElementById('status').textContent =
-        data.areas.length + data.unmapped.length > 0
-          ? 'התרעות פעילות: ' + (data.areas.length + data.unmapped.length)
-          : 'אין התרעות פעילות';
+        data.areas.forEach((area) => {
+          const card = document.createElement('div');
+          card.className = 'alert-card';
+          card.innerHTML = `<div class="name">📍 ${area.name}</div><div class="meta">מוצג על המפה</div>`;
+          alertsList.appendChild(card);
+        });
+
+        if (data.unmapped.length > 0) {
+          const card = document.createElement('div');
+          card.className = 'unmapped-card';
+          card.textContent = 'ללא מיקום על המפה: ' + data.unmapped.join(', ');
+          alertsList.appendChild(card);
+        }
+      }
     } catch (err) {
-      document.getElementById('status').textContent = 'שגיאת חיבור';
+      liveText.textContent = 'שגיאת חיבור לשרת';
     }
   }
 
